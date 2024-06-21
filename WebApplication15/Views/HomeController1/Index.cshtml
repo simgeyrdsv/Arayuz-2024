@@ -1,0 +1,74 @@
+﻿
+@{
+    ViewData["Title"] = "Manuel Kontrol Paneli";
+}
+<h2>@ViewData["Title"]</h2>
+
+<div id="videoStream">
+    <img id="videoFrame" src="" alt="Video Akışı" />
+</div>
+
+<div id="controls">
+    <button id="upButton">Yukarı</button>
+    <button id="downButton">Aşağı</button>
+    <button id="leftButton">Sol</button>
+    <button id="rightButton">Sağ</button>
+</div>
+
+<div id="vehicleData">
+    <h3>Araç Verileri</h3>
+    <div id="dataDisplay"></div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.11/signalr.min.js"></script>
+    <script>
+        const controlConnection = new signalR.HubConnectionBuilder().withUrl("/controlhub").build();
+        const videoConnection = new signalR.HubConnectionBuilder().withUrl("/videohub").build();
+        const vehicleConnection = new signalR.HubConnectionBuilder().withUrl("/vehiclehub").build();
+
+        document.getElementById("upButton").addEventListener("click", () => {
+            controlConnection.invoke("Move", "up");
+        });
+
+        document.getElementById("downButton").addEventListener("click", () => {
+            controlConnection.invoke("Move", "down");
+        });
+
+        document.getElementById("leftButton").addEventListener("click", () => {
+            controlConnection.invoke("Move", "left");
+        });
+
+        document.getElementById("rightButton").addEventListener("click", () => {
+            controlConnection.invoke("Move", "right");
+        });
+
+        videoConnection.on("ReceiveVideoFrame", (base64Image) => {
+            document.getElementById("videoFrame").src = "data:image/jpeg;base64," + base64Image;
+        });
+
+        vehicleConnection.on("ReceiveVehicleData", (data) => {
+            document.getElementById("dataDisplay").innerText = data;
+        });
+
+        async function start() {
+            try {
+                await controlConnection.start();
+                await videoConnection.start();
+                await vehicleConnection.start();
+                console.log("SignalR bağlantıları başarılı!");
+
+                // Araç verilerini almak için çağrı yapın
+                setInterval(() => {
+                    vehicleConnection.invoke("GetVehicleData");
+                }, 1000); // Her saniye veri al
+            } catch (err) {
+                console.log(err);
+                setTimeout(start, 5000);
+            }
+        }
+
+        start();
+    </script>
+}
+
